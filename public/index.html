@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TextilePro — Gestion de Production</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">🧵</div>
+      <h1>TextilePro</h1>
+      <p>Gestion de Production</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <span class="nav-icon">📊</span> Tableau de bord
+      </div>
+      <div class="nav-item" data-page="kanban" onclick="navigate('kanban')">
+        <span class="nav-icon">📋</span> Suivi Kanban
+      </div>
+
+      <div class="nav-section">Production</div>
+      <div class="nav-item" data-page="ordres" onclick="navigate('ordres')">
+        <span class="nav-icon">⚙️</span> Ordres de fabrication
+      </div>
+      <div class="nav-item" data-page="encours" onclick="navigate('encours')">
+        <span class="nav-icon">🔄</span> Encours
+      </div>
+      <div class="nav-item" data-page="mouvements" onclick="navigate('mouvements')">
+        <span class="nav-icon">📦</span> Mouvements
+      </div>
+
+      <div class="nav-section">Référentiel</div>
+      <div class="nav-item" data-page="dossiers" onclick="navigate('dossiers')">
+        <span class="nav-icon">📁</span> Dossiers Techniques
+      </div>
+      <div class="nav-item" data-page="articles" onclick="navigate('articles')">
+        <span class="nav-icon">🏷️</span> Articles
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-outline btn-icon" id="menuBtn" onclick="toggleSidebar()" style="display:none">☰</button>
+        <span class="topbar-title" id="pageTitle">Tableau de bord</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="currentDate" style="font-size:0.8rem;color:var(--muted)"></span>
+        <button class="btn btn-primary btn-sm" onclick="openNewOF()">+ Nouvel OF</button>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- ===================== PAGE DASHBOARD ===================== -->
+      <div class="page active" id="page-dashboard">
+
+        <div id="kpiGrid" class="kpi-grid"></div>
+
+        <div class="section-grid mb-6">
+          <!-- Charge par étape -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⚡ Charge par étape</span>
+            </div>
+            <div class="card-body">
+              <div class="charge-grid" id="chargeGrid">
+                <div class="text-muted" style="text-align:center;padding:24px">Chargement...</div>
+              </div>
+            </div>
+          </div>
+          <!-- Alertes -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🔔 Alertes&nbsp;<span class="badge badge-danger" id="alertCount">0</span></span>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div id="alertsList" style="display:flex;flex-direction:column;gap:8px;padding:16px">
+                <div class="text-muted" style="text-align:center;padding:24px">Chargement...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OFs urgents / en retard -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🔥 OFs prioritaires &amp; en retard</span>
+            <button class="btn btn-outline btn-sm" onclick="navigate('ordres')">Voir tous</button>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>N° OF</th>
+                    <th>Article</th>
+                    <th>Client</th>
+                    <th>Priorité</th>
+                    <th>Livraison</th>
+                    <th>Étape actuelle</th>
+                    <th>Délai</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="urgentsTbody">
+                  <tr><td colspan="8" class="table-empty">Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /page-dashboard -->
+
+      <!-- ===================== PAGE KANBAN ===================== -->
+      <div class="page" id="page-kanban">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <p style="color:var(--muted);font-size:0.875rem">Suivi en temps réel du flux de production</p>
+          <button class="btn btn-outline btn-sm" onclick="loadKanban()">🔄 Actualiser</button>
+        </div>
+        <div class="kanban-wrapper">
+          <div class="kanban-board" id="kanbanBoard">
+            <div style="color:var(--muted);padding:40px">Chargement...</div>
+          </div>
+        </div>
+      </div><!-- /page-kanban -->
+
+      <!-- ===================== PAGE ORDRES ===================== -->
+      <div class="page" id="page-ordres">
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-control" id="searchOF"
+              placeholder="Rechercher un OF, article, client…"
+              oninput="filterOFs()" style="width:280px">
+          </div>
+          <select class="form-control" id="filterStatut" onchange="filterOFs()" style="width:145px">
+            <option value="">Tous statuts</option>
+            <option value="planifie">Planifié</option>
+            <option value="en_cours">En cours</option>
+            <option value="suspendu">Suspendu</option>
+            <option value="termine">Terminé</option>
+            <option value="annule">Annulé</option>
+          </select>
+          <select class="form-control" id="filterPriorite" onchange="filterOFs()" style="width:135px">
+            <option value="">Toutes priorités</option>
+            <option value="basse">Basse</option>
+            <option value="normale">Normale</option>
+            <option value="haute">Haute</option>
+            <option value="urgente">Urgente</option>
+          </select>
+          <button class="btn btn-primary ms-auto" onclick="openNewOF()">+ Nouvel OF</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>N° OF</th>
+                    <th>Article</th>
+                    <th>Client</th>
+                    <th>Qté lancée</th>
+                    <th>Priorité</th>
+                    <th>Statut</th>
+                    <th>Livraison</th>
+                    <th>Avancement</th>
+                    <th>Rebuts</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ofsTbody">
+                  <tr><td colspan="10" class="table-empty">Chargement…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-ordres -->
+
+      <!-- ===================== PAGE ENCOURS ===================== -->
+      <div class="page" id="page-encours">
+        <div class="toolbar">
+          <select class="form-control" id="filterEtape" onchange="loadEncours()" style="width:185px">
+            <option value="">Toutes les étapes</option>
+          </select>
+          <select class="form-control" id="filterStatutEnc" onchange="loadEncours()" style="width:145px">
+            <option value="">Tous statuts</option>
+            <option value="en_attente">En attente</option>
+            <option value="en_cours">En cours</option>
+            <option value="suspendu">Suspendu</option>
+            <option value="termine">Terminé</option>
+          </select>
+          <button class="btn btn-primary ms-auto" onclick="openMouvementModal()">+ Mouvement</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>N° OF</th>
+                    <th>Article</th>
+                    <th>Étape</th>
+                    <th>Qté entrée</th>
+                    <th>En cours</th>
+                    <th>Qté sortie</th>
+                    <th>Rebuts</th>
+                    <th>Opérateur</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="encoursTbody">
+                  <tr><td colspan="10" class="table-empty">Chargement…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-encours -->
+
+      <!-- ===================== PAGE MOUVEMENTS ===================== -->
+      <div class="page" id="page-mouvements">
+        <div class="toolbar">
+          <span style="color:var(--muted);font-size:0.875rem">Historique des 50 derniers mouvements</span>
+          <button class="btn btn-primary ms-auto" onclick="openMouvementModal()">+ Nouveau mouvement</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>N° OF</th>
+                    <th>Article</th>
+                    <th>Type</th>
+                    <th>Étape départ</th>
+                    <th>Étape arrivée</th>
+                    <th>Quantité</th>
+                    <th>Opérateur</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="mvtTbody">
+                  <tr><td colspan="9" class="table-empty">Chargement…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-mouvements -->
+
+      <!-- ===================== PAGE DOSSIERS ===================== -->
+      <div class="page" id="page-dossiers">
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-control" id="searchDossier"
+              placeholder="Rechercher un dossier…"
+              oninput="filterDossiers()" style="width:280px">
+          </div>
+          <select class="form-control" id="filterDossierStatut" onchange="filterDossiers()" style="width:160px">
+            <option value="">Tous statuts</option>
+            <option value="brouillon">Brouillon</option>
+            <option value="en_revision">En révision</option>
+            <option value="valide">Validé</option>
+            <option value="archive">Archivé</option>
+          </select>
+          <button class="btn btn-primary ms-auto" onclick="openNewDossier()">+ Nouveau dossier</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Référence</th>
+                    <th>Désignation</th>
+                    <th>Version</th>
+                    <th>Statut</th>
+                    <th>Rédacteur</th>
+                    <th>Mis à jour</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="dossiersTbody">
+                  <tr><td colspan="7" class="table-empty">Aucun dossier technique</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-dossiers -->
+
+      <!-- ===================== PAGE DOSSIER DETAIL ===================== -->
+      <div class="page" id="page-dossier-detail">
+
+        <!-- DT HEADER -->
+        <div class="dt-header mb-6">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="navigate('dossiers')">← Retour</button>
+            <div class="dt-article-card" style="max-width:420px">
+              <span class="dt-article-icon" id="dtArticleIcon">🧵</span>
+              <div>
+                <div class="dt-article-ref" id="dtArticleRef">REF-000</div>
+                <div class="dt-article-name" id="dtArticleName">Article</div>
+              </div>
+            </div>
+            <div class="ms-auto d-flex gap-2" style="flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" onclick="saveDossier()">💾 Enregistrer</button>
+              <button class="btn btn-primary btn-sm" onclick="printDossier()">🖨️ Imprimer</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Version</label>
+                  <input type="text" class="form-control" id="dt_version" placeholder="v1.0">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Statut</label>
+                  <select class="form-control" id="dt_statut">
+                    <option value="brouillon">Brouillon</option>
+                    <option value="en_revision">En révision</option>
+                    <option value="valide">Validé</option>
+                    <option value="archive">Archivé</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Rédacteur</label>
+                  <input type="text" class="form-control" id="dt_redacteur" placeholder="Nom du rédacteur">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Valideur</label>
+                  <input type="text" class="form-control" id="dt_valideur" placeholder="Nom du valideur">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Date de validation</label>
+                  <input type="date" class="form-control" id="dt_date_validation">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Observations</label>
+                  <input type="text" class="form-control" id="dt_observations" placeholder="Observations générales">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DT TABS -->
+        <div class="tabs" id="dtTabs">
+          <button class="tab active" onclick="switchDtTab('nomenclature', this)">📋 Nomenclature</button>
+          <button class="tab" onclick="switchDtTab('variantes', this)">🎨 Variantes</button>
+          <button class="tab" onclick="switchDtTab('gamme', this)">⚙️ Gamme</button>
+          <button class="tab" onclick="switchDtTab('placement', this)">📐 Placement</button>
+          <button class="tab" onclick="switchDtTab('mesures', this)">📏 Mesures</button>
+          <button class="tab" onclick="switchDtTab('qualite', this)">✅ Qualité</button>
+          <button class="tab" onclick="switchDtTab('prix', this)">💰 Prix de revient</button>
+          <button class="tab" onclick="switchDtTab('suivi', this)">📝 Suivi</button>
+        </div>
+
+        <!-- TAB: NOMENCLATURE -->
+        <div class="dt-tab active" id="dt-tab-nomenclature">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📋 Nomenclature des matières</span>
+              <button class="btn btn-primary btn-sm" onclick="openNomModal()">+ Ajouter</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Référence</th>
+                      <th>Désignation matière</th>
+                      <th>Catégorie</th>
+                      <th>Qté unitaire</th>
+                      <th>Unité</th>
+                      <th>Perte (%)</th>
+                      <th>Qté totale</th>
+                      <th>Coût unit.</th>
+                      <th>Coût total</th>
+                      <th>Fournisseur</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dtNomTbody">
+                    <tr><td colspan="11" class="table-empty">Aucune matière dans la nomenclature</td></tr>
+                  </tbody>
+                  <tfoot id="dtNomFoot"></tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: VARIANTES -->
+        <div class="dt-tab" id="dt-tab-variantes">
+          <div class="d-flex align-center gap-2 mb-4">
+            <h3 style="font-size:0.95rem;font-weight:600">Variantes couleurs et tailles</h3>
+            <button class="btn btn-primary btn-sm ms-auto" onclick="openVarianteModal()">+ Ajouter variante</button>
+          </div>
+          <div id="dtVariantesContainer">
+            <div class="text-muted" style="text-align:center;padding:40px">Aucune variante définie</div>
+          </div>
+        </div>
+
+        <!-- TAB: GAMME -->
+        <div class="dt-tab" id="dt-tab-gamme">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⚙️ Gamme opératoire</span>
+              <div class="d-flex gap-2 align-center">
+                <span id="dtGammeStats" style="font-size:0.8rem;color:var(--muted)"></span>
+                <button class="btn btn-primary btn-sm" onclick="openGammeModal()">+ Ajouter opération</button>
+              </div>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Poste de travail</th>
+                      <th>Opération</th>
+                      <th>Description</th>
+                      <th>Tps unitaire (min)</th>
+                      <th>Tps total</th>
+                      <th>Nb opérateurs</th>
+                      <th>Machine</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dtGammeTbody">
+                    <tr><td colspan="9" class="table-empty">Aucune opération dans la gamme</td></tr>
+                  </tbody>
+                  <tfoot id="dtGammeFoot"></tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: PLACEMENT -->
+        <div class="dt-tab" id="dt-tab-placement">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📐 Plan de placement</span>
+              <button class="btn btn-primary btn-sm" onclick="openPlacementModal()">+ Ajouter pièce</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Pièce</th>
+                      <th>Référence</th>
+                      <th>Matière</th>
+                      <th>Qté / produit</th>
+                      <th>Longueur matelas</th>
+                      <th>Laize</th>
+                      <th>Nb épaisseurs</th>
+                      <th>Consommation</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dtPlacementTbody">
+                    <tr><td colspan="9" class="table-empty">Aucune pièce de placement</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: MESURES -->
+        <div class="dt-tab" id="dt-tab-mesures">
+          <div class="card mb-4">
+            <div class="card-body">
+              <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Échelle de mesure</label>
+                  <input type="text" class="form-control" id="dt_mesures_echelle" placeholder="cm" style="width:120px">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Taille de base</label>
+                  <input type="text" class="form-control" id="dt_mesures_base" placeholder="M / 40" style="width:120px">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="openMesureModal()">+ Ajouter point de mesure</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body" style="padding:0">
+              <div class="table-wrapper">
+                <table id="dtMesuresTable">
+                  <thead id="dtMesuresHead">
+                    <tr>
+                      <th>Point de mesure</th>
+                      <th class="tol-col">Tolérance +/-</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dtMesuresTbody">
+                    <tr><td colspan="2" class="table-empty">Aucun point de mesure défini</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: QUALITE -->
+        <div class="dt-tab" id="dt-tab-qualite">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">✅ Points de contrôle qualité</span>
+              <button class="btn btn-primary btn-sm" onclick="openQualiteModal()">+ Ajouter contrôle</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Poste</th>
+                      <th>Point de contrôle</th>
+                      <th>Méthode</th>
+                      <th>Fréquence</th>
+                      <th>Critère</th>
+                      <th>Gravité</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dtQualiteTbody">
+                    <tr><td colspan="8" class="table-empty">Aucun point de contrôle défini</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: PRIX -->
+        <div class="dt-tab" id="dt-tab-prix">
+          <div class="form-grid">
+            <!-- Paramètres -->
+            <div class="card">
+              <div class="card-header"><span class="card-title">Paramètres de calcul</span></div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label class="form-label">Taux MO (€/heure)</label>
+                  <input type="number" class="form-control" id="pr_taux_mo" placeholder="12.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Taux charges sociales (%)</label>
+                  <input type="number" class="form-control" id="pr_taux_charges" placeholder="45" step="0.1" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Frais fixes (€)</label>
+                  <input type="number" class="form-control" id="pr_frais_fixes" placeholder="0.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Frais transport (€)</label>
+                  <input type="number" class="form-control" id="pr_frais_transport" placeholder="0.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Frais divers (€)</label>
+                  <input type="number" class="form-control" id="pr_frais_divers" placeholder="0.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Marge souhaitée (%)</label>
+                  <input type="number" class="form-control" id="pr_marge" placeholder="30" step="0.1" min="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Notes</label>
+                  <textarea class="form-control" id="pr_notes" rows="3" placeholder="Notes et hypothèses de calcul…"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="calculerPrix()">Calculer le prix de revient</button>
+              </div>
+            </div>
+            <!-- Résultats -->
+            <div id="prResultats">
+              <div class="text-muted" style="text-align:center;padding:60px">
+                <div style="font-size:2.5rem;margin-bottom:12px">💰</div>
+                <p>Configurez les paramètres et cliquez sur "Calculer" pour obtenir le prix de revient.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: SUIVI -->
+        <div class="dt-tab" id="dt-tab-suivi">
+          <div class="section-grid">
+            <!-- Historique -->
+            <div>
+              <div class="d-flex align-center gap-2 mb-4">
+                <h3 style="font-size:0.95rem;font-weight:600">Historique du suivi</h3>
+              </div>
+              <div id="dtSuiviList">
+                <div class="text-muted" style="text-align:center;padding:40px">Aucune entrée de suivi</div>
+              </div>
+            </div>
+            <!-- Formulaire -->
+            <div>
+              <div class="card">
+                <div class="card-header"><span class="card-title">Ajouter une entrée</span></div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label class="form-label required">Type</label>
+                    <select class="form-control" id="suivi_type">
+                      <option value="commentaire">💬 Commentaire</option>
+                      <option value="modification">✏️ Modification</option>
+                      <option value="validation">✅ Validation</option>
+                      <option value="alerte">🚨 Alerte</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label required">Auteur</label>
+                    <input type="text" class="form-control" id="suivi_auteur" placeholder="Votre nom">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label required">Contenu</label>
+                    <textarea class="form-control" id="suivi_contenu" rows="4" placeholder="Saisissez votre commentaire…"></textarea>
+                  </div>
+                  <button class="btn btn-primary" onclick="addSuivi()">Ajouter l'entrée</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /page-dossier-detail -->
+
+      <!-- ===================== PAGE ARTICLES ===================== -->
+      <div class="page" id="page-articles">
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-control" id="searchArticle"
+              placeholder="Référence, désignation…"
+              oninput="filterArticles()" style="width:280px">
+          </div>
+          <button class="btn btn-primary ms-auto" onclick="openArticleModal()">+ Nouvel article</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Référence</th>
+                    <th>Désignation</th>
+                    <th>Catégorie</th>
+                    <th>Unité</th>
+                    <th>OFs actifs</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="articlesTbody">
+                  <tr><td colspan="6" class="table-empty">Chargement…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /page-articles -->
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Modal: Nouvel / Modifier OF -->
+<div class="modal-overlay hidden" id="modalOF">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalOFTitle">Nouvel ordre de fabrication</span>
+      <button class="btn-close" onclick="closeModal('modalOF')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="formOF" onsubmit="return false">
+        <input type="hidden" id="of_id">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label required">N° OF</label>
+            <input type="text" class="form-control" id="of_numero_of" placeholder="OF-2024-001" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Article</label>
+            <select class="form-control" id="of_article_id" required>
+              <option value="">Sélectionner un article…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Quantité</label>
+            <input type="number" class="form-control" id="of_quantite" min="1" placeholder="100" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Priorité</label>
+            <select class="form-control" id="of_priorite" required>
+              <option value="basse">Basse</option>
+              <option value="normale" selected>Normale</option>
+              <option value="haute">Haute</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Statut</label>
+            <select class="form-control" id="of_statut" required>
+              <option value="planifie" selected>Planifié</option>
+              <option value="en_cours">En cours</option>
+              <option value="suspendu">Suspendu</option>
+              <option value="termine">Terminé</option>
+              <option value="annule">Annulé</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Date de lancement</label>
+            <input type="date" class="form-control" id="of_date_lancement" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Date de livraison prévue</label>
+            <input type="date" class="form-control" id="of_date_livraison" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Client</label>
+            <input type="text" class="form-control" id="of_client" placeholder="Nom du client">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observations</label>
+          <textarea class="form-control" id="of_observations" rows="3" placeholder="Observations, instructions spéciales…"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalOF')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveOF()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Détail OF -->
+<div class="modal-overlay hidden" id="modalDetailOF">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="detailOFTitle">Détail OF</span>
+      <button class="btn-close" onclick="closeModal('modalDetailOF')">✕</button>
+    </div>
+    <div class="modal-body" id="detailOFBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalDetailOF')">Fermer</button>
+      <button class="btn btn-primary" id="detailOFEditBtn">✏️ Modifier</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Mouvement -->
+<div class="modal-overlay hidden" id="modalMouvement">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Enregistrer un mouvement</span>
+      <button class="btn-close" onclick="closeModal('modalMouvement')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="formMouvement" onsubmit="return false">
+        <div class="form-group">
+          <label class="form-label required">Ordre de fabrication</label>
+          <select class="form-control" id="mvt_of_id" required>
+            <option value="">Sélectionner un OF…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Type de mouvement</label>
+          <select class="form-control" id="mvt_type" onchange="toggleMvtFields()" required>
+            <option value="entree">Entrée (début production)</option>
+            <option value="transfert">Transfert (changement d'étape)</option>
+            <option value="sortie">Sortie (fin d'étape)</option>
+            <option value="rebut">Rebut</option>
+            <option value="correction">Correction</option>
+          </select>
+        </div>
+        <div id="mvtDepartWrap">
+          <div class="form-group">
+            <label class="form-label">Étape de départ</label>
+            <select class="form-control" id="mvt_etape_depart">
+              <option value="">Sélectionner…</option>
+            </select>
+          </div>
+        </div>
+        <div id="mvtArriveeWrap">
+          <div class="form-group">
+            <label class="form-label">Étape d'arrivée</label>
+            <select class="form-control" id="mvt_etape_arrivee">
+              <option value="">Sélectionner…</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label required">Quantité</label>
+            <input type="number" class="form-control" id="mvt_quantite" min="1" placeholder="0" required>
+          </div>
+          <div id="mvtRebutWrap" style="display:none">
+            <div class="form-group">
+              <label class="form-label">Dont rebut</label>
+              <input type="number" class="form-control" id="mvt_rebut" min="0" placeholder="0">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opérateur</label>
+          <input type="text" class="form-control" id="mvt_operateur" placeholder="Nom de l'opérateur">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" id="mvt_notes" rows="2" placeholder="Observations…"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalMouvement')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveMouvement()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Article -->
+<div class="modal-overlay hidden" id="modalArticle">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalArticleTitle">Nouvel article</span>
+      <button class="btn-close" onclick="closeModal('modalArticle')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="formArticle" onsubmit="return false">
+        <input type="hidden" id="article_id">
+        <div class="form-group">
+          <label class="form-label required">Référence</label>
+          <input type="text" class="form-control" id="article_reference" placeholder="ART-001" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Désignation</label>
+          <input type="text" class="form-control" id="article_designation" placeholder="Nom de l'article" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label required">Catégorie</label>
+            <input type="text" class="form-control" id="article_categorie" placeholder="Veste, Pantalon…" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Unité</label>
+            <select class="form-control" id="article_unite" required>
+              <option value="pièce">Pièce</option>
+              <option value="mètre">Mètre</option>
+              <option value="kg">Kg</option>
+              <option value="lot">Lot</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" id="article_description" rows="3" placeholder="Description de l'article…"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalArticle')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveArticle()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nouveau Dossier Technique -->
+<div class="modal-overlay hidden" id="modalNewDossier">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Nouveau dossier technique</span>
+      <button class="btn-close" onclick="closeModal('modalNewDossier')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label required">Article</label>
+        <select class="form-control" id="nd_article_id" required>
+          <option value="">Sélectionner un article…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label required">Version initiale</label>
+        <input type="text" class="form-control" id="nd_version" placeholder="v1.0" value="v1.0" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rédacteur</label>
+        <input type="text" class="form-control" id="nd_redacteur" placeholder="Nom du rédacteur">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observations initiales</label>
+        <textarea class="form-control" id="nd_observations" rows="3" placeholder="Notes initiales…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalNewDossier')">Annuler</button>
+      <button class="btn btn-primary" onclick="createDossier()">Créer le dossier</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nomenclature (matière) -->
+<div class="modal-overlay hidden" id="modalNom">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalNomTitle">Ajouter une matière</span>
+      <button class="btn-close" onclick="closeModal('modalNom')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="nom_id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label required">Référence matière</label>
+          <input type="text" class="form-control" id="nom_reference" placeholder="MAT-001" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Désignation</label>
+          <input type="text" class="form-control" id="nom_designation" placeholder="Tissu principal…" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Catégorie</label>
+          <select class="form-control" id="nom_categorie">
+            <option value="tissu">Tissu</option>
+            <option value="doublure">Doublure</option>
+            <option value="entoilage">Entoilage</option>
+            <option value="accessoire">Accessoire</option>
+            <option value="fourniture">Fourniture</option>
+            <option value="emballage">Emballage</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Quantité unitaire</label>
+          <input type="number" class="form-control" id="nom_quantite" placeholder="1.500" step="0.001" min="0" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Unité</label>
+          <select class="form-control" id="nom_unite">
+            <option value="m">m (mètre)</option>
+            <option value="m²">m²</option>
+            <option value="kg">kg</option>
+            <option value="pcs">pcs</option>
+            <option value="m lin.">m lin.</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Perte (%)</label>
+          <input type="number" class="form-control" id="nom_perte" placeholder="5" min="0" max="100" step="0.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Coût unitaire (€)</label>
+          <input type="number" class="form-control" id="nom_cout" placeholder="12.500" step="0.001" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fournisseur</label>
+          <input type="text" class="form-control" id="nom_fournisseur" placeholder="Nom du fournisseur">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input type="text" class="form-control" id="nom_notes" placeholder="Notes spécifiques…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalNom')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveNomenclature()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Variante -->
+<div class="modal-overlay hidden" id="modalVariante">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalVarianteTitle">Ajouter une variante couleur</span>
+      <button class="btn-close" onclick="closeModal('modalVariante')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="variante_id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label required">Couleur</label>
+          <input type="text" class="form-control" id="variante_couleur_nom" placeholder="Marine, Rouge Bordeaux…" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Code couleur</label>
+          <input type="color" class="form-control" id="variante_couleur_code" value="#2c3e50" style="height:38px;padding:2px 4px">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label required">Tailles disponibles</label>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px" id="taillesCheckboxes">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="XS"> XS</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="S"> S</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="M" checked> M</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="L" checked> L</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="XL"> XL</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="XXL"> XXL</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="36"> 36</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="38"> 38</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="40" checked> 40</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="42"> 42</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" value="44"> 44</label>
+        </div>
+        <input type="text" class="form-control" id="variante_tailles_custom" placeholder="Ou saisir manuellement séparées par virgule: S,M,L,XL">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input type="text" class="form-control" id="variante_notes" placeholder="Notes sur cette variante…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalVariante')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveVariante()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Pièce (Placement) -->
+<div class="modal-overlay hidden" id="modalPiece">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalPieceTitle">Ajouter une pièce de placement</span>
+      <button class="btn-close" onclick="closeModal('modalPiece')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="piece_id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label required">Nom de la pièce</label>
+          <input type="text" class="form-control" id="piece_nom" placeholder="Devant, Dos, Manche…" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Référence</label>
+          <input type="text" class="form-control" id="piece_reference" placeholder="P-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Matière</label>
+          <input type="text" class="form-control" id="piece_matiere" placeholder="Tissu principal…" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Qté / produit</label>
+          <input type="number" class="form-control" id="piece_quantite" min="1" placeholder="2" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Longueur matelas (m)</label>
+          <input type="number" class="form-control" id="piece_longueur" step="0.01" min="0" placeholder="1.50">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Laize (m)</label>
+          <input type="number" class="form-control" id="piece_laize" step="0.01" min="0" placeholder="1.40">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nb épaisseurs</label>
+          <input type="number" class="form-control" id="piece_epaisseurs" min="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Consommation (m)</label>
+          <input type="number" class="form-control" id="piece_consommation" step="0.001" min="0" placeholder="0.000">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalPiece')">Annuler</button>
+      <button class="btn btn-primary" onclick="savePiece()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Gamme opératoire -->
+<div class="modal-overlay hidden" id="modalGamme">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalGammeTitle">Ajouter une opération</span>
+      <button class="btn-close" onclick="closeModal('modalGamme')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="gamme_id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label required">Poste de travail</label>
+          <input type="text" class="form-control" id="gamme_poste" placeholder="Coupe, Montage, Finition…" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Opération</label>
+          <input type="text" class="form-control" id="gamme_operation" placeholder="Nom court de l'opération" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Temps unitaire (min)</label>
+          <input type="number" class="form-control" id="gamme_temps" step="0.1" min="0" placeholder="5.0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nb opérateurs</label>
+          <input type="number" class="form-control" id="gamme_nb_operateurs" min="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Machine requise</label>
+          <input type="text" class="form-control" id="gamme_machine" placeholder="Surjeteuse, Fer…">
+        </div>
+        <div class="form-group">
+          <label class="form-label">N° d'ordre</label>
+          <input type="number" class="form-control" id="gamme_ordre" min="1" placeholder="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description détaillée</label>
+        <textarea class="form-control" id="gamme_description" rows="3" placeholder="Instructions détaillées pour cette opération…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalGamme')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveGamme()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Placement (paramètres matelas) -->
+<div class="modal-overlay hidden" id="modalPlacement">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalPlacementTitle">Paramètres de placement</span>
+      <button class="btn-close" onclick="closeModal('modalPlacement')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="placement_id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label required">Matière</label>
+          <input type="text" class="form-control" id="placement_matiere" placeholder="Tissu principal" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Laize (m)</label>
+          <input type="number" class="form-control" id="placement_laize" step="0.01" min="0" placeholder="1.40">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Longueur matelas (m)</label>
+          <input type="number" class="form-control" id="placement_longueur" step="0.01" min="0" placeholder="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nombre d'épaisseurs</label>
+          <input type="number" class="form-control" id="placement_epaisseurs" min="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Perte matelassage (%)</label>
+          <input type="number" class="form-control" id="placement_perte_matelas" min="0" max="100" step="0.1" placeholder="2">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Efficacité placement (%)</label>
+          <input type="number" class="form-control" id="placement_efficacite" min="0" max="100" step="0.1" placeholder="85">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes de placement</label>
+        <textarea class="form-control" id="placement_notes" rows="2" placeholder="Instructions particulières de placement…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalPlacement')">Annuler</button>
+      <button class="btn btn-primary" onclick="savePlacement()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Point de mesure -->
+<div class="modal-overlay hidden" id="modalMesure">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalMesureTitle">Ajouter un point de mesure</span>
+      <button class="btn-close" onclick="closeModal('modalMesure')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mesure_id">
+      <div class="form-group">
+        <label class="form-label required">Point de mesure</label>
+        <input type="text" class="form-control" id="mesure_nom" placeholder="Tour de poitrine, Longueur manche…" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tolérance +/- (unité configurée)</label>
+        <input type="number" class="form-control" id="mesure_tolerance" step="0.1" min="0" placeholder="1.0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Méthode de mesure</label>
+        <input type="text" class="form-control" id="mesure_methode" placeholder="Ex: à plat, coutures face à face…">
+      </div>
+      <div id="mesureValeursContainer">
+        <p style="font-size:0.8rem;color:var(--muted)">Les valeurs par taille seront éditables directement dans le tableau après ajout.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalMesure')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveMesure()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Point de contrôle qualité -->
+<div class="modal-overlay hidden" id="modalQualite">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalQualiteTitle">Ajouter un point de contrôle</span>
+      <button class="btn-close" onclick="closeModal('modalQualite')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="qualite_id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label required">Poste</label>
+          <input type="text" class="form-control" id="qualite_poste" placeholder="Coupe, Assemblage, Finition…" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Point de contrôle</label>
+          <input type="text" class="form-control" id="qualite_point" placeholder="Vérification coutures…" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Méthode de contrôle</label>
+          <select class="form-control" id="qualite_methode">
+            <option value="visuel">Visuel</option>
+            <option value="mesure">Mesure</option>
+            <option value="essai">Essai</option>
+            <option value="comptage">Comptage</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fréquence</label>
+          <select class="form-control" id="qualite_frequence">
+            <option value="100%">100 %</option>
+            <option value="aléatoire">Aléatoire</option>
+            <option value="début_série">Début de série</option>
+            <option value="chaque_100">Chaque 100 pièces</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gravité du défaut</label>
+          <select class="form-control" id="qualite_gravite">
+            <option value="mineur">Mineur</option>
+            <option value="majeur">Majeur</option>
+            <option value="critique">Critique</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">N° d'ordre</label>
+          <input type="number" class="form-control" id="qualite_ordre" min="1" placeholder="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label required">Critère d'acceptation</label>
+        <textarea class="form-control" id="qualite_critere" rows="3" placeholder="Décrire le critère d'acceptation précis…" required></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalQualite')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveQualite()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script src="/js/dossiers.js"></script>
+</body>
+</html>
